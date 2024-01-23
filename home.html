@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="home-container">
+        <div class="home-header">
+            <div class="home-profile">
+                <img alt="photo" id="profileimage">
+            </div>
+            <div class="home-bio">
+                <div id="username" style="font-size: 24px; font-weight: bold; color: #333;"></div>
+                <div id="bio"></div>
+                <div id="location">
+                    📍 Location:
+                </div>
+                <div id="twitter"></div>
+            </div>
+        </div>
+        <p id="githublink"></p>
+        <div class="home-card">
+            <div id="repository">
+                <div id="language"></div>
+            </div>
+        </div>
+        <div id="pagination">
+            <div class="paging">
+                <button onclick="prevPage()" class="prev">Previous</button>
+                <div id="page"></div>
+                <button onclick="nextPage()" class="next">Next</button>
+            </div>
+        </div>
+        <div class="rep">
+            <select id="reposPerPage" onchange="updateReposPerPage()">
+                <option value="10">10 Repos</option>
+                <option value="30">30 Repos</option>
+                <option value="50">50 Repos</option>
+                <option value="100">100 Repos</option>
+            </select>
+        </div>
+    </div>
+
+    <script>
+
+        let page = 1;
+        let perPage = 10;
+
+        const storedData = localStorage.getItem('userData');
+        const responseData = storedData ? JSON.parse(storedData) : null;
+
+        console.log("resp", responseData);
+        document.getElementById("username").innerHTML = responseData.login;
+        document.getElementById("bio").innerHTML = responseData.bio !== null ? responseData.bio : "Bio : Bio is not Added";
+        document.getElementById("profileimage").setAttribute("src", responseData.avatar_url);
+        document.getElementById("location").innerHTML = `📍: ${responseData.location !== null ? responseData.location : "Location is not added"}`;
+        document.getElementById("twitter").innerHTML = responseData.twitter_username !== null ? 'Twitter :' + responseData.twitter_username : "Twitter : Twitter is not Added";
+        document.getElementById("githublink").innerHTML = responseData.url !== null ? ' URL : ' + responseData.url : "URL : url is not Added";
+
+
+        function updateReposPerPage() {
+            perPage = parseInt(document.getElementById("reposPerPage").value);
+            renderPage();
+            renderRepositories();
+        }
+
+        function handlePageNum(pageNum) {
+            page = pageNum;
+            renderRepositories()
+        }
+
+        function goToPage(selectedPage) {
+            page = selectedPage;
+            renderRepositories();
+        }
+
+        function prevPage() {
+            if (page > 1) {
+                page--;
+                renderRepositories();
+            }
+        }
+
+        function nextPage() {
+            page++;
+            renderRepositories();
+        }
+
+        async function fetchLinkData(langUrl) {
+            try {
+                const langResult = await fetch(langUrl);
+                const langdata = await langResult.json();
+                const langdataKeyArr = Object.keys(langdata);
+
+                let langDiv = "";
+                langdataKeyArr.forEach((langKey) => {
+                    langDiv += `<div class="lang-container">`;
+                    langDiv += langKey;
+                    langDiv += `</div>`;
+                });
+                return langDiv;
+            } catch (error) {
+                console.error('Error fetching language data:', error);
+            }
+        }
+
+        function renderPage() {
+            fetch(responseData.repos_url, { headers: { Authorization: 'Bearer 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' } })
+                .then((result) => result.json())
+                .then((data) => {
+                    const dataLength = data.length;
+                    const pages = [];
+                    for (let i = 1; i <= Math.ceil(dataLength / perPage); i++) {
+                        pages.push(i);
+                    }
+
+                    let temp = "";
+                    for (const pageNumber of pages) {
+                        temp += `<div class="page-container">`;
+                        temp += `<button onclick="handlePageNum(${pageNumber})">` + pageNumber + `</button>`;
+                        temp += `</div>`;
+                    }
+
+                    document.getElementById("page").innerHTML = temp;
+
+                })
+        }
+        function renderRepositories() {
+            const storedData = localStorage.getItem('userData');
+            const responseData = storedData ? JSON.parse(storedData) : null;
+
+            console.log("renderRepositoriesPage--------", perPage, page)
+            fetch(responseData.repos_url + `?per_page=${perPage}&page=${page}`, { headers: { Authorization: 'Bearer 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' } })
+                .then((result) => result.json())
+                .then(async (data) => {
+                    try {
+                        const datarepo = JSON.stringify(data);
+                        sessionStorage.setItem('repodata', datarepo);
+                        const repositories = JSON.parse(datarepo);
+                        console.log("repositories length--------", repositories.length)
+                        let temp = "";
+                        for (const repo of repositories) {
+                            temp += `<div class="home-repo">`;
+                            temp += `<h3>` + repo.name + `</h3>`;
+                            temp += `<div>` + repo.description + `</div>`;
+                            temp += `<div>` + await fetchLinkData(repo.languages_url) + `</div>`;
+                            temp += `</div>`;
+                        }
+
+                        document.getElementById("repository").innerHTML = temp;
+                    } catch (error) {
+                        console.error('Error processing repository data:', error);
+                    }
+                });
+        }
+
+        // Initial rendering
+        updateReposPerPage();
+        renderPage()
+    </script>
+
+</body>
+
+</html>
